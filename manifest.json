@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Session Guard - Data Exfiltration Detector",
+  "version": "1.0",
+  "description": "Detects spyware attempting to steal cookies, tokens, or session data.",
+  
+  "permissions": [
+    "webRequest",
+    "webRequestBlocking",
+    "notifications",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "icons": {
+    "128": "icon.png"
+  }
+}
