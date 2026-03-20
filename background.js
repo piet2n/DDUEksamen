@@ -97,15 +97,65 @@ function containsSensitiveKeyword(data) {
 
 }
 
-function alertUser(message, url) {
+let activePopupWindowId = null;
+const popupCooldown = {};
 
-  chrome.notifications.create({
-    type: "basic",
-    iconUrl: "icon.png",
-    title: "⚠️ Possible Data Exfiltration",
-    message: message + "\n" + url
+function canShowForKey(key) {
+  const now = Date.now();
+  if (!popupCooldown[key] || now - popupCooldown[key] > 20_000) {
+    popupCooldown[key] = now;
+    return true;
+  }
+  return false;
+}
+
+function showPopup(title, message, url, details = "") {
+  if (activePopupWindowId !== null) {
+    return;
+  }
+
+  if (!canShowForKey(title + "|" + url)) {
+    return;
+  }
+
+  const params = new URLSearchParams({
+    title: title || "⚠️ Alert",
+    message: message || "No message provided.",
+    url: url || "",
+    details: details || ""
   });
 
+  const popupUrl = chrome.runtime.getURL(`warning.html?${params.toString()}`);
+
+  chrome.windows.create({
+    url: popupUrl,
+    type: "popup",
+    width: 420,
+    height: 300
+  }, (win) => {
+    if (chrome.runtime.lastError || !win) {
+      console.error("Could not open warning popup", chrome.runtime.lastError);
+      return;
+    }
+    activePopupWindowId = win.id;
+  });
+}
+
+chrome.windows.onRemoved.addListener((windowId) => {
+  if (windowId === activePopupWindowId) {
+    activePopupWindowId = null;
+  }
+});
+
+function isCookiePromptUrl(url) {
+  const lower = url.toLowerCase();
+  return (
+    lower.includes("cookie") ||
+    lower.includes("consent") ||
+    lower.includes("gdpr") ||
+    lower.includes("privacy") ||
+    lower.includes("agree")
+  );
 }
 
 function analyzeRequest(details) {
@@ -156,45 +206,42 @@ function analyzeRequest(details) {
   }
 
   if (riskScore > 60) {
-
-    alertUser(
+    showPopup(
+      "⚠️ Possible Data Exfiltration",
       "Suspicious network request detected",
-      url
+      url,
+      `Risk score: ${riskScore}`
     );
-
   }
 
+  if (isCookiePromptUrl(url)) {
+    showPopup(
+      "⚠️ Cookie prompt detected",
+      "HEY HEY DONT JUST PRESS AGREE - read what you share first.",
+      url,
+      "Page URL matched cookie/consent terms."
+    );
+  }
 }
 
 chrome.webRequest.onBeforeRequest.addListener(
-
   function(details) {
-
     analyzeRequest(details);
-
   },
-
   { urls: ["<all_urls>"] },
-
   ["requestBody"]
-
 );
 
 chrome.webRequest.onBeforeRequest.addListener(
-
   function(details) {
-
     if (details.type === "websocket") {
-
-      alertUser(
-        "Unknown WebSocket connection detected",
-        details.url
+      showPopup(
+        "⚠️ Unknown WebSocket connection detected",
+        "New WebSocket connection may be suspicious.",
+        details.url,
+        "WebSocket request type observed."
       );
-
     }
-
   },
-
   { urls: ["<all_urls>"] }
-
 );

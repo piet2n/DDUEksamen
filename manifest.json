@@ -1,13 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Session Guard - Data Exfiltration Detector",
+  "name": "Vinduesrens",
   "version": "1.0",
   "description": "Detects spyware attempting to steal cookies, tokens, or session data.",
   
   "permissions": [
     "webRequest",
     "webRequestBlocking",
-    "notifications",
     "storage"
   ],
 
