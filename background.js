@@ -1,46 +1,76 @@
-chrome.runtime.onMessage.addListener((message, sender) => {
-  if (message.type === "COOKIE_POPUP_DETECTED" && sender.tab) {
-    const tabId = sender.tab.id;
-    const key = `alerts_${tabId}`;
+// Known tracker domains
+const TRACKER_DOMAINS = [
+  "google-analytics.com",
+  "googletagmanager.com",
+  "facebook.net",
+  "connect.facebook.net",
+  "tiktok.com",
+  "analytics.tiktok.com",
+  "hotjar.com",
+  "segment.com"
+];
 
-    chrome.storage.local.get([key], (result) => {
-      const alerts = result[key] || [];
+// 🚫 BLOCK TRACKERS
+chrome.webRequest.onBeforeRequest.addListener(
+  (details) => {
+    const url = details.url;
 
-      if (!alerts.includes("Cookie popup detected")) {
-        alerts.push("Cookie popup detected");
+    const blocked = TRACKER_DOMAINS.some(domain => url.includes(domain));
 
-        chrome.storage.local.set({ [key]: alerts }, () => {
-          updateBadge(tabId, alerts.length);
+    if (blocked) {
+      console.log("Blocked tracker:", url);
+
+      // Store blocked tracker
+      const tabId = details.tabId;
+      if (tabId >= 0) {
+        const key = `trackers_${tabId}`;
+
+        chrome.storage.local.get([key], (result) => {
+          const trackers = result[key] || [];
+
+          const domain = new URL(url).hostname;
+
+          if (!trackers.includes(domain)) {
+            trackers.push(domain);
+
+            chrome.storage.local.set({ [key]: trackers }, () => {
+              updateBadge(tabId, trackers.length);
+            });
+          }
         });
       }
-    });
-  }
-});
+
+      return { cancel: true }; // 💥 BLOCK IT
+    }
+  },
+  { urls: ["<all_urls>"] },
+  ["blocking"]
+);
 
 // 🔢 Badge updater
 function updateBadge(tabId, count) {
   chrome.action.setBadgeText({
     text: count > 0 ? String(count) : "",
-    tabId: tabId
+    tabId
   });
 
   chrome.action.setBadgeBackgroundColor({
-    color: "#e74c3c", // red
-    tabId: tabId
+    color: "#e74c3c",
+    tabId
   });
 }
 
-// 🧹 Clean up when tab closes
-chrome.tabs.onRemoved.addListener((tabId) => {
-  chrome.storage.local.remove([`alerts_${tabId}`]);
+// 🔄 Tab switch
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  const key = `trackers_${tabId}`;
+
+  chrome.storage.local.get([key], (result) => {
+    const trackers = result[key] || [];
+    updateBadge(tabId, trackers.length);
+  });
 });
 
-// 🔄 When user switches tabs → update badge
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  const tabId = activeInfo.tabId;
-
-  chrome.storage.local.get([`alerts_${tabId}`], (result) => {
-    const alerts = result[`alerts_${tabId}`] || [];
-    updateBadge(tabId, alerts.length);
-  });
+// 🧹 Cleanup
+chrome.tabs.onRemoved.addListener((tabId) => {
+  chrome.storage.local.remove([`trackers_${tabId}`]);
 });

@@ -1,14 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Vinduesrens",
-  "version": "0.3",
+  "version": "0.4",
   "description": "Alerts users to potential data collection like cookie popups.",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "notifications",
-    "storage"
-  ],
+"permissions": [
+  "storage",
+  "activeTab",
+  "scripting",
+  "notifications",
+  "webRequest",
+  "webRequestBlocking"
+],
+"host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },

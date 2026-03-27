@@ -3,25 +3,21 @@
 <head>
   <title>Vinduesrens Panel</title>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 10px;
-      min-width: 250px;
-    }
-    h1 {
-      font-size: 16px;
-      margin-bottom: 10px;
-    }
-    ul {
-      padding-left: 20px;
-    }
+    body { font-family: sans-serif; padding: 10px; min-width: 250px; }
+    h1 { font-size: 16px; margin-bottom: 10px; }
+    ul { padding-left: 20px; }
   </style>
 </head>
 <body>
   <h1>Vinduesrens Panel</h1>
-  <div id="alerts">No alerts yet.</div>
 
-  <!-- ✅ External script only -->
+  <label>
+    <input type="checkbox" id="autoDenyToggle" />
+    Auto-deny cookies
+  </label>
+
+  <div id="alerts">No trackers yet.</div>
+
   <script src="popup.js"></script>
 </body>
 </html>
