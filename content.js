@@ -1,24 +1,25 @@
-function detectCookiePopups() {
-  const keywords = [
-    "cookie",
-    "cookies",
-    "accept all",
-    "agree",
-    "consent",
-    "gdpr"
-  ];
+let detectedElements = new Set();
 
+function detectCookiePopups() {
+  const keywords = ["cookie", "cookies", "accept all", "agree", "consent", "gdpr"];
   const elements = document.querySelectorAll("div, section, aside, footer");
 
-  elements.forEach(el => {
+  for (const el of elements) {
     const text = el.innerText?.toLowerCase() || "";
-
     const matches = keywords.some(keyword => text.includes(keyword));
 
     if (matches && isVisible(el)) {
-      chrome.runtime.sendMessage({ type: "COOKIE_POPUP_DETECTED" });
+      const id = el.innerText.slice(0, 100); // simple fingerprint
+
+      if (!detectedElements.has(id)) {
+        detectedElements.add(id);
+
+        chrome.runtime.sendMessage({
+          type: "COOKIE_POPUP_DETECTED"
+        });
+      }
     }
-  });
+  }
 }
 
 function isVisible(el) {
@@ -31,8 +32,5 @@ function isVisible(el) {
   );
 }
 
-// Run detection periodically
-setInterval(detectCookiePopups, 3000);
-
-// Initial run
 detectCookiePopups();
+setInterval(detectCookiePopups, 3000);
