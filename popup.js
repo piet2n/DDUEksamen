@@ -1,19 +1,44 @@
 const toggle = document.getElementById("autoDenyToggle");
-const trackerCountEl = document.getElementById("trackerCount");
+const scoreEl = document.getElementById("score");
 const statusText = document.getElementById("statusText");
+const trackerCountEl = document.getElementById("trackerCount");
+const trackerListEl = document.getElementById("trackerList");
 
-// Load toggle
+// Toggle
 chrome.storage.local.get(["autoDeny"], (result) => {
   toggle.checked = result.autoDeny || false;
 });
 
-// Save toggle
 toggle.addEventListener("change", () => {
   chrome.storage.local.set({ autoDeny: toggle.checked });
 });
 
-// Load trackers
-function loadTrackers() {
+// Format trackers
+function formatTracker(domain) {
+  if (domain.includes("google")) return "Google";
+  if (domain.includes("facebook")) return "Facebook";
+  if (domain.includes("tiktok")) return "TikTok";
+  if (domain.includes("hotjar")) return "Hotjar";
+  if (domain.includes("segment")) return "Segment";
+  if (domain.includes("doubleclick")) return "Google Ads";
+  return domain;
+}
+
+// Score
+function calculateScore(count) {
+  let score = 100 - count * 10;
+  return score < 0 ? 0 : score;
+}
+
+// Status
+function getStatus(score) {
+  if (score > 80) return { text: "✅ This site respects your privacy", class: "safe" };
+  if (score > 50) return { text: "⚠️ Some tracking detected", class: "warn" };
+  return { text: "🚨 Heavy tracking detected", class: "danger" };
+}
+
+// Load tab data
+function loadData() {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs.length) return;
 
@@ -21,49 +46,55 @@ function loadTrackers() {
 
     chrome.storage.local.get([`trackers_${tabId}`], (result) => {
       const trackers = result[`trackers_${tabId}`] || [];
-      const container = document.getElementById("alerts");
-
       const count = trackers.length;
-      trackerCountEl.innerText = count;
 
-      // Friendly status
-      if (count === 0) {
-        statusText.innerText = "✅ This site looks safe";
-        trackerCountEl.className = "big-number safe";
-      } else if (count < 5) {
-        statusText.innerText = "⚠️ Some tracking detected";
-        trackerCountEl.className = "big-number warn";
-      } else {
-        statusText.innerText = "🚨 Heavy tracking detected";
-        trackerCountEl.className = "big-number danger";
-      }
+      trackerCountEl.innerHTML = `<strong>${count}</strong>`;
 
-      // List
+      const score = calculateScore(count);
+      scoreEl.innerText = score;
+
+      const status = getStatus(score);
+      statusText.innerText = status.text;
+      scoreEl.className = `score ${status.class}`;
+
       if (count > 0) {
-        container.innerHTML =
+        const unique = [...new Set(trackers.map(formatTracker))];
+
+        trackerListEl.innerHTML =
           "<ul>" +
-          trackers.map(t => `<li>${formatTracker(t)}</li>`).join("") +
+          unique.map(t => `<li>${t}</li>`).join("") +
           "</ul>";
       } else {
-        container.innerText = "No trackers detected.";
+        trackerListEl.innerText = "No known tracking companies detected";
       }
     });
   });
 }
 
-// Make names human-readable
-function formatTracker(tracker) {
-  if (tracker.includes("google")) return "Google tracking";
-  if (tracker.includes("facebook")) return "Facebook tracking";
-  if (tracker.includes("tiktok")) return "TikTok tracking";
-  if (tracker.includes("hotjar")) return "User behavior tracking";
-  return tracker;
+// 📊 Load stats
+function loadStats() {
+  chrome.storage.local.get(["stats"], (res) => {
+    const stats = res.stats || {
+      totalBlocked: 0,
+      todayBlocked: 0
+    };
+
+    const el = document.getElementById("statsBlock");
+
+    el.innerHTML = `
+      <div><strong>${stats.totalBlocked}</strong> blocked all-time</div>
+      <div><strong>${stats.todayBlocked}</strong> blocked today</div>
+    `;
+  });
 }
 
+// Init
 document.addEventListener("DOMContentLoaded", () => {
-  loadTrackers();
+  loadData();
+  loadStats();
 
   chrome.storage.onChanged.addListener(() => {
-    loadTrackers();
+    loadData();
+    loadStats();
   });
 });

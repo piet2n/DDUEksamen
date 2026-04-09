@@ -6,8 +6,9 @@
     body {
       font-family: Arial, sans-serif;
       padding: 12px;
-      min-width: 260px;
-      background: #fafafa;
+      min-width: 280px;
+      background: #f7f9fb;
+      color: #333;
     }
 
     h1 {
@@ -17,31 +18,47 @@
 
     .card {
       background: white;
-      border-radius: 10px;
-      padding: 10px;
+      border-radius: 12px;
+      padding: 12px;
       margin-bottom: 10px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
     }
 
-    .big-number {
-      font-size: 24px;
+    .score {
+      font-size: 28px;
       font-weight: bold;
     }
 
-    .safe { color: green; }
-    .warn { color: orange; }
-    .danger { color: red; }
+    .safe { color: #2ecc71; }
+    .warn { color: #f39c12; }
+    .danger { color: #e74c3c; }
 
-    label {
+    .label {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    .row {
       display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 8px;
+      justify-content: space-between;
     }
 
     ul {
       padding-left: 18px;
-      font-size: 12px;
+      font-size: 13px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer {
+      font-size: 11px;
+      text-align: center;
+      opacity: 0.6;
+      margin-top: 5px;
     }
   </style>
 </head>
@@ -50,23 +67,40 @@
 <h1>🧼 Vinduesrens</h1>
 
 <div class="card">
-  <div id="statusText">Checking site...</div>
-  <div class="big-number" id="trackerCount">0</div>
+  <div class="label">Privacy Score</div>
+  <div id="score" class="score">--</div>
+  <div id="statusText"></div>
 </div>
 
 <div class="card">
-  <label>
+  <div class="row">
+    <div>Blocked trackers</div>
+    <div id="trackerCount"><strong>0</strong></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="label">This site shares data with:</div>
+  <div id="trackerList">No known trackers</div>
+</div>
+
+<!-- 📊 STATS -->
+<div class="card">
+  <div class="label">Your protection</div>
+  <div id="statsBlock">Loading...</div>
+</div>
+
+<div class="card">
+  <div class="toggle">
     <input type="checkbox" id="autoDenyToggle" />
-    Automatically reject cookies
-  </label>
+    <label for="autoDenyToggle">Auto-reject cookies</label>
+  </div>
 </div>
 
-<div class="card">
-  <strong>Details</strong>
-  <div id="alerts">No trackers detected.</div>
+<div class="footer">
+  Protecting your privacy automatically
 </div>
 
 <script src="popup.js"></script>
-
 </body>
 </html>

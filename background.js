@@ -1,5 +1,5 @@
 // ===============================
-// 🧨 FILTER LIST (LIKE uBlock)
+// 🧨 FILTER LIST
 // ===============================
 
 const FILTER_LIST = [
@@ -22,33 +22,48 @@ const FILTER_LIST = [
 chrome.webRequest.onBeforeRequest.addListener(
   (details) => {
     const url = details.url;
-
     const matched = FILTER_LIST.find(rule => url.includes(rule));
 
     if (matched) {
       const tabId = details.tabId;
-
-      // Skip invalid tabs
       if (tabId < 0) return { cancel: true };
 
       const key = `trackers_${tabId}`;
 
-      chrome.storage.local.get([key], (result) => {
+      chrome.storage.local.get([key, "stats"], (result) => {
         const trackers = result[key] || [];
 
+        // Only count once per domain per tab
         if (!trackers.includes(matched)) {
           trackers.push(matched);
 
-          chrome.storage.local.set({ [key]: trackers }, () => {
-            updateBadge(tabId, trackers.length);
+          // 📊 STATS
+          const stats = result.stats || {
+            totalBlocked: 0,
+            todayBlocked: 0,
+            lastDate: new Date().toDateString()
+          };
 
-            // 🔄 force popup refresh
-            chrome.storage.local.set({ lastUpdate: Date.now() });
+          const today = new Date().toDateString();
+
+          if (stats.lastDate !== today) {
+            stats.todayBlocked = 0;
+            stats.lastDate = today;
+          }
+
+          stats.totalBlocked += 1;
+          stats.todayBlocked += 1;
+
+          chrome.storage.local.set({
+            [key]: trackers,
+            stats: stats,
+            lastUpdate: Date.now()
           });
+
+          updateBadge(tabId, trackers.length);
         }
       });
 
-      console.log("Blocked:", matched);
       return { cancel: true };
     }
   },
@@ -83,7 +98,8 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   chrome.storage.local.remove([`trackers_${tabId}`]);
 });
-// 🎓 Open tutorial on install
+
+// 🎓 OPEN TUTORIAL
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
     chrome.tabs.create({
