@@ -1,99 +1,48 @@
 // ===============================
-// 🧠 TRACKER DETECTION
+// 🧨 FINGERPRINTING BLOCKING
 // ===============================
 
-let detectedTrackers = new Set();
-
-const TRACKERS = [
-  { name: "Google Analytics", pattern: "google-analytics.com" },
-  { name: "Google Tag Manager", pattern: "googletagmanager.com" },
-  { name: "Meta Pixel", pattern: "facebook.net" },
-  { name: "TikTok Pixel", pattern: "tiktok.com" },
-  { name: "Hotjar", pattern: "hotjar.com" },
-  { name: "Segment", pattern: "segment.com" }
-];
-
-// Detect trackers via <script>
-function detectTrackersFromScripts() {
-  const scripts = document.querySelectorAll("script[src]");
-
-  scripts.forEach(script => {
-    const src = script.src;
-
-    TRACKERS.forEach(tracker => {
-      if (src.includes(tracker.pattern)) {
-        registerTracker(tracker.name);
-      }
-    });
-  });
-}
-
-// Intercept network requests
-(function interceptNetwork() {
-  const origFetch = window.fetch;
-  window.fetch = async (...args) => {
-    checkRequest(args[0]);
-    return origFetch.apply(this, args);
+function blockFingerprinting() {
+  // Canvas
+  const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+  HTMLCanvasElement.prototype.toDataURL = function () {
+    console.log("Blocked Canvas fingerprinting");
+    return "data:image/png;base64,blocked";
   };
 
-  const origXHR = window.XMLHttpRequest;
-  window.XMLHttpRequest = function () {
-    const xhr = new origXHR();
-    const origOpen = xhr.open;
-
-    xhr.open = function (method, url) {
-      checkRequest(url);
-      return origOpen.apply(this, arguments);
-    };
-
-    return xhr;
+  // WebGL
+  const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
+  WebGLRenderingContext.prototype.getParameter = function () {
+    console.log("Blocked WebGL fingerprinting");
+    return null;
   };
-})();
 
-function checkRequest(url) {
-  if (!url) return;
-
-  TRACKERS.forEach(tracker => {
-    if (url.includes(tracker.pattern)) {
-      registerTracker(tracker.name);
-    }
-  });
-}
-
-// Send tracker to background (deduplicated)
-function registerTracker(name) {
-  if (!detectedTrackers.has(name)) {
-    detectedTrackers.add(name);
-
-    chrome.runtime.sendMessage({
-      type: "TRACKER_DETECTED",
-      tracker: name
-    });
-  }
+  // Audio
+  const originalGetChannelData = AudioBuffer.prototype.getChannelData;
+  AudioBuffer.prototype.getChannelData = function () {
+    console.log("Blocked Audio fingerprinting");
+    return new Float32Array(0);
+  };
 }
 
 // ===============================
-// 🍪 COOKIE AUTO-DENY
+// 🍪 COOKIE HANDLING
 // ===============================
 
-// Cookiebot handler
 function handleCookiebot() {
   const btn = document.querySelector("#CybotCookiebotDialogBodyButtonDecline");
   if (btn) {
     btn.click();
-    console.log("Cookiebot rejected");
     return true;
   }
   return false;
 }
 
-// OneTrust handler
 function handleOneTrust() {
   const rejectBtn = document.querySelector("#onetrust-reject-all-handler");
 
   if (rejectBtn) {
     rejectBtn.click();
-    console.log("OneTrust rejected");
     return true;
   }
 
@@ -104,10 +53,7 @@ function handleOneTrust() {
 
     setTimeout(() => {
       const confirmBtn = document.querySelector(".save-preference-btn");
-      if (confirmBtn) {
-        confirmBtn.click();
-        console.log("OneTrust rejected via settings");
-      }
+      if (confirmBtn) confirmBtn.click();
     }, 500);
 
     return true;
@@ -116,107 +62,46 @@ function handleOneTrust() {
   return false;
 }
 
-// Generic fallback (EN + DK)
 function autoDenyCookies() {
   chrome.storage.local.get(["autoDeny"], (result) => {
     if (!result.autoDeny) return;
 
-    // Try smart handlers first
     if (handleCookiebot()) return;
     if (handleOneTrust()) return;
 
     const elements = document.querySelectorAll("button, a, div");
 
     const keywords = [
-      // English
-      "reject", "deny", "decline", "only necessary", "essential",
-
-      // Danish 🇩🇰
-      "afvis", "afslå", "afvis alle",
-      "kun nødvendige", "nødvendige",
-      "tillad nødvendige"
+      "reject","deny","decline","only necessary","essential",
+      "afvis","afslå","afvis alle",
+      "kun nødvendige","nødvendige","tillad nødvendige"
     ];
 
     for (const el of elements) {
-      const text = el.innerText?.toLowerCase().trim() || "";
+      const text = el.innerText?.toLowerCase() || "";
 
-      if (!text) continue;
-
-      const matches = keywords.some(k => text.includes(k));
-
-      if (matches && isClickable(el)) {
+      if (keywords.some(k => text.includes(k))) {
         el.click();
-        console.log("Auto-denied (fallback):", text);
         return;
       }
     }
   });
 }
 
-// Check if element is clickable
-function isClickable(el) {
-  const style = window.getComputedStyle(el);
-
-  return (
-    el.offsetParent !== null &&
-    (style.cursor === "pointer" ||
-      el.tagName === "BUTTON" ||
-      el.tagName === "A")
-  );
-}
-
-// Try inside iframes (best effort)
-function scanIframes() {
-  const iframes = document.querySelectorAll("iframe");
-
-  for (const iframe of iframes) {
-    try {
-      const doc = iframe.contentDocument || iframe.contentWindow.document;
-      if (!doc) continue;
-
-      const buttons = doc.querySelectorAll("button");
-
-      for (const btn of buttons) {
-        const text = btn.innerText?.toLowerCase() || "";
-
-        if (
-          text.includes("reject") ||
-          text.includes("afvis")
-        ) {
-          btn.click();
-          console.log("Rejected inside iframe");
-          return;
-        }
-      }
-    } catch (e) {
-      // Cross-origin iframe → ignore
-    }
-  }
-}
-
 // ===============================
-// 🔁 EXECUTION LOOP
+// 🔁 LOOP
 // ===============================
 
-// Fast initial attempts (catch early popups)
+blockFingerprinting();
+
 let attempts = 0;
-const fastInterval = setInterval(() => {
-  detectTrackersFromScripts();
+const fast = setInterval(() => {
   autoDenyCookies();
-  scanIframes();
 
   attempts++;
-  if (attempts > 10) clearInterval(fastInterval);
+  if (attempts > 10) clearInterval(fast);
 }, 500);
 
-// Slower ongoing scan
 setInterval(() => {
-  detectTrackersFromScripts();
   autoDenyCookies();
-  scanIframes();
 }, 3000);
-
-// Initial run
-detectTrackersFromScripts();
-autoDenyCookies();
-scanIframes();

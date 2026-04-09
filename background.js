@@ -1,53 +1,62 @@
-// Known tracker domains
-const TRACKER_DOMAINS = [
+// ===============================
+// 🧨 FILTER LIST (LIKE uBlock)
+// ===============================
+
+const FILTER_LIST = [
+  "doubleclick.net",
   "google-analytics.com",
   "googletagmanager.com",
   "facebook.net",
   "connect.facebook.net",
-  "tiktok.com",
   "analytics.tiktok.com",
+  "tiktok.com",
   "hotjar.com",
-  "segment.com"
+  "segment.com",
+  "mixpanel.com",
+  "ads-twitter.com",
+  "snapchat.com",
+  "bing.com/analytics"
 ];
 
-// 🚫 BLOCK TRACKERS
+// 🚫 BLOCK REQUESTS
 chrome.webRequest.onBeforeRequest.addListener(
   (details) => {
     const url = details.url;
 
-    const blocked = TRACKER_DOMAINS.some(domain => url.includes(domain));
+    const matched = FILTER_LIST.find(rule => url.includes(rule));
 
-    if (blocked) {
-      console.log("Blocked tracker:", url);
-
-      // Store blocked tracker
+    if (matched) {
       const tabId = details.tabId;
-      if (tabId >= 0) {
-        const key = `trackers_${tabId}`;
 
-        chrome.storage.local.get([key], (result) => {
-          const trackers = result[key] || [];
+      // Skip invalid tabs
+      if (tabId < 0) return { cancel: true };
 
-          const domain = new URL(url).hostname;
+      const key = `trackers_${tabId}`;
 
-          if (!trackers.includes(domain)) {
-            trackers.push(domain);
+      chrome.storage.local.get([key], (result) => {
+        const trackers = result[key] || [];
 
-            chrome.storage.local.set({ [key]: trackers }, () => {
-              updateBadge(tabId, trackers.length);
-            });
-          }
-        });
-      }
+        if (!trackers.includes(matched)) {
+          trackers.push(matched);
 
-      return { cancel: true }; // 💥 BLOCK IT
+          chrome.storage.local.set({ [key]: trackers }, () => {
+            updateBadge(tabId, trackers.length);
+
+            // 🔄 force popup refresh
+            chrome.storage.local.set({ lastUpdate: Date.now() });
+          });
+        }
+      });
+
+      console.log("Blocked:", matched);
+      return { cancel: true };
     }
   },
   { urls: ["<all_urls>"] },
   ["blocking"]
 );
 
-// 🔢 Badge updater
+// 🔢 Badge
 function updateBadge(tabId, count) {
   chrome.action.setBadgeText({
     text: count > 0 ? String(count) : "",
@@ -73,4 +82,12 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
 // 🧹 Cleanup
 chrome.tabs.onRemoved.addListener((tabId) => {
   chrome.storage.local.remove([`trackers_${tabId}`]);
+});
+// 🎓 Open tutorial on install
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === "install") {
+    chrome.tabs.create({
+      url: chrome.runtime.getURL("welcome.html")
+    });
+  }
 });
