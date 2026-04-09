@@ -1,76 +1,3 @@
-// ===============================
-// 🧨 FILTER LIST
-// ===============================
-
-const FILTER_LIST = [
-  "doubleclick.net",
-  "google-analytics.com",
-  "googletagmanager.com",
-  "facebook.net",
-  "connect.facebook.net",
-  "analytics.tiktok.com",
-  "tiktok.com",
-  "hotjar.com",
-  "segment.com",
-  "mixpanel.com",
-  "ads-twitter.com",
-  "snapchat.com",
-  "bing.com/analytics"
-];
-
-// 🚫 BLOCK REQUESTS
-chrome.webRequest.onBeforeRequest.addListener(
-  (details) => {
-    const url = details.url;
-    const matched = FILTER_LIST.find(rule => url.includes(rule));
-
-    if (matched) {
-      const tabId = details.tabId;
-      if (tabId < 0) return { cancel: true };
-
-      const key = `trackers_${tabId}`;
-
-      chrome.storage.local.get([key, "stats"], (result) => {
-        const trackers = result[key] || [];
-
-        // Only count once per domain per tab
-        if (!trackers.includes(matched)) {
-          trackers.push(matched);
-
-          // 📊 STATS
-          const stats = result.stats || {
-            totalBlocked: 0,
-            todayBlocked: 0,
-            lastDate: new Date().toDateString()
-          };
-
-          const today = new Date().toDateString();
-
-          if (stats.lastDate !== today) {
-            stats.todayBlocked = 0;
-            stats.lastDate = today;
-          }
-
-          stats.totalBlocked += 1;
-          stats.todayBlocked += 1;
-
-          chrome.storage.local.set({
-            [key]: trackers,
-            stats: stats,
-            lastUpdate: Date.now()
-          });
-
-          updateBadge(tabId, trackers.length);
-        }
-      });
-
-      return { cancel: true };
-    }
-  },
-  { urls: ["<all_urls>"] },
-  ["blocking"]
-);
-
 // 🔢 Badge
 function updateBadge(tabId, count) {
   chrome.action.setBadgeText({
@@ -83,6 +10,46 @@ function updateBadge(tabId, count) {
     tabId
   });
 }
+
+// 🔢 RECEIVE TRACKERS FROM CONTENT SCRIPT
+chrome.runtime.onMessage.addListener((msg, sender) => {
+  if (msg.type === "TRACKER_DETECTED") {
+    const tabId = sender.tab.id;
+    const key = `trackers_${tabId}`;
+
+    chrome.storage.local.get([key, "stats"], (result) => {
+      const trackers = result[key] || [];
+
+      if (!trackers.includes(msg.tracker)) {
+        trackers.push(msg.tracker);
+
+        const stats = result.stats || {
+          totalBlocked: 0,
+          todayBlocked: 0,
+          lastDate: new Date().toDateString()
+        };
+
+        const today = new Date().toDateString();
+
+        if (stats.lastDate !== today) {
+          stats.todayBlocked = 0;
+          stats.lastDate = today;
+        }
+
+        stats.totalBlocked += 1;
+        stats.todayBlocked += 1;
+
+        chrome.storage.local.set({
+          [key]: trackers,
+          stats: stats,
+          lastUpdate: Date.now()
+        });
+
+        updateBadge(tabId, trackers.length);
+      }
+    });
+  }
+});
 
 // 🔄 Tab switch
 chrome.tabs.onActivated.addListener(({ tabId }) => {
@@ -99,11 +66,11 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   chrome.storage.local.remove([`trackers_${tabId}`]);
 });
 
-// 🎓 OPEN TUTORIAL
+// 🎓 Tutorial on install
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
     chrome.tabs.create({
-      url: chrome.runtime.getURL("welcome.html")
+      url: chrome.runtime.getURL("hitherehello.html")
     });
   }
 });

@@ -43,9 +43,11 @@ function loadData() {
     if (!tabs.length) return;
 
     const tabId = tabs[0].id;
+    console.log('Loading data for tab:', tabId);
 
     chrome.storage.local.get([`trackers_${tabId}`], (result) => {
       const trackers = result[`trackers_${tabId}`] || [];
+      console.log('Retrieved trackers:', trackers);
       const count = trackers.length;
 
       trackerCountEl.innerHTML = `<strong>${count}</strong>`;
