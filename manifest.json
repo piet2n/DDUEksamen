@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vinduesrens",
-  "version": "0.5",
+  "version": "1.0",
   "description": "Protects your privacy by blocking trackers and cookies.",
 
   "permissions": [

@@ -1,6 +1,3 @@
-// ===============================
-// 🧨 FINGERPRINTING BLOCKING
-// ===============================
 function blockFingerprinting() {
   try {
     HTMLCanvasElement.prototype.toDataURL = function () {
@@ -18,9 +15,7 @@ function blockFingerprinting() {
   } catch {}
 }
 
-// ===============================
-// 🍪 COOKIE HANDLING
-// ===============================
+// COOKIE HANDLING
 function handleCookiebot() {
   try {
     const btn = document.querySelector("#CybotCookiebotDialogBodyButtonDecline");
@@ -85,9 +80,7 @@ function autoDenyCookies() {
   } catch {}
 }
 
-// ===============================
-// 🔢 TRACKER DETECTION
-// ===============================
+// TRACKER LOGIC
 const TRACKERS = [
   "google-analytics.com",
   "googletagmanager.com",
@@ -116,9 +109,7 @@ function detectTrackers() {
   } catch {}
 }
 
-// ===============================
-// 🔁 SPA-SAFE LOOP
-// ===============================
+// SPA-SAFE LOOP
 blockFingerprinting();
 detectTrackers();
 

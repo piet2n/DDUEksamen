@@ -1,4 +1,4 @@
-// 🔢 Badge
+// Badge
 function updateBadge(tabId, count) {
   chrome.action.setBadgeText({
     text: count > 0 ? String(count) : "",
@@ -11,7 +11,7 @@ function updateBadge(tabId, count) {
   });
 }
 
-// 🔢 RECEIVE TRACKERS FROM CONTENT SCRIPT
+// RECEIVE TRACKERS FROM CONTENT SCRIPT
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg.type === "TRACKER_DETECTED") {
     const tabId = sender.tab.id;
@@ -51,7 +51,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   }
 });
 
-// 🔄 Tab switch
+// when switching tabs
 chrome.tabs.onActivated.addListener(({ tabId }) => {
   const key = `trackers_${tabId}`;
 
@@ -61,12 +61,12 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
   });
 });
 
-// 🧹 Cleanup
+// Cleanup
 chrome.tabs.onRemoved.addListener((tabId) => {
   chrome.storage.local.remove([`trackers_${tabId}`]);
 });
 
-// 🎓 Tutorial on install
+// If it is the first time, open welcome page
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
     chrome.tabs.create({

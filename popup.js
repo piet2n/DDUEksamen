@@ -32,9 +32,9 @@ function calculateScore(count) {
 
 // Status
 function getStatus(score) {
-  if (score > 80) return { text: "✅ This site respects your privacy", class: "safe" };
-  if (score > 50) return { text: "⚠️ Some tracking detected", class: "warn" };
-  return { text: "🚨 Heavy tracking detected", class: "danger" };
+  if (score > 80) return { text: "This site respects your privacy", class: "safe" };
+  if (score > 50) return { text: "Some tracking detected", class: "warn" };
+  return { text: "Heavy tracking detected", class: "danger" };
 }
 
 // Load tab data
@@ -73,7 +73,7 @@ function loadData() {
   });
 }
 
-// 📊 Load stats
+// Load stats
 function loadStats() {
   chrome.storage.local.get(["stats"], (res) => {
     const stats = res.stats || {
@@ -98,5 +98,11 @@ document.addEventListener("DOMContentLoaded", () => {
   chrome.storage.onChanged.addListener(() => {
     loadData();
     loadStats();
+  });
+});
+// Read more button
+document.getElementById("readMoreBtn").addEventListener("click", () => {
+  chrome.tabs.create({
+    url: chrome.runtime.getURL("hitherehello.html")
   });
 });
