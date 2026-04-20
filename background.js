@@ -1,27 +1,31 @@
-// Badge
-function updateBadge(tabId, count) {
-  chrome.action.setBadgeText({
-    text: count > 0 ? String(count) : "",
-    tabId
-  });
+const FILTER_LIST = [
+  "google-analytics.com",
+  "googletagmanager.com",
+  "doubleclick.net",
+  "facebook.net",
+  "tiktok.com",
+  "hotjar.com",
+  "segment.com"
+];
 
-  chrome.action.setBadgeBackgroundColor({
-    color: "#e74c3c",
-    tabId
-  });
-}
+// 🚫 BLOCK TRACKERS (FULL POWER in Firefox)
+chrome.webRequest.onBeforeRequest.addListener(
+  (details) => {
+    const url = details.url;
+    const matched = FILTER_LIST.find(rule => url.includes(rule));
 
-// RECEIVE TRACKERS FROM CONTENT SCRIPT
-chrome.runtime.onMessage.addListener((msg, sender) => {
-  if (msg.type === "TRACKER_DETECTED") {
-    const tabId = sender.tab.id;
+    if (!matched) return;
+
+    const tabId = details.tabId;
+    if (tabId < 0) return { cancel: true };
+
     const key = `trackers_${tabId}`;
 
     chrome.storage.local.get([key, "stats"], (result) => {
       const trackers = result[key] || [];
 
-      if (!trackers.includes(msg.tracker)) {
-        trackers.push(msg.tracker);
+      if (!trackers.includes(matched)) {
+        trackers.push(matched);
 
         const stats = result.stats || {
           totalBlocked: 0,
@@ -41,32 +45,47 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
 
         chrome.storage.local.set({
           [key]: trackers,
-          stats: stats,
-          lastUpdate: Date.now()
+          stats: stats
         });
 
         updateBadge(tabId, trackers.length);
       }
     });
-  }
-});
 
-// when switching tabs
+    return { cancel: true };
+  },
+  { urls: ["<all_urls>"] },
+  ["blocking"]
+);
+
+// 🔢 Badge
+function updateBadge(tabId, count) {
+  chrome.browserAction.setBadgeText({
+    text: count > 0 ? String(count) : "",
+    tabId
+  });
+
+  chrome.browserAction.setBadgeBackgroundColor({
+    color: "#e74c3c",
+    tabId
+  });
+}
+
+// 🔄 Tab switch
 chrome.tabs.onActivated.addListener(({ tabId }) => {
   const key = `trackers_${tabId}`;
-
-  chrome.storage.local.get([key], (result) => {
-    const trackers = result[key] || [];
+  chrome.storage.local.get([key], (res) => {
+    const trackers = res[key] || [];
     updateBadge(tabId, trackers.length);
   });
 });
 
-// Cleanup
+// 🧹 Cleanup
 chrome.tabs.onRemoved.addListener((tabId) => {
   chrome.storage.local.remove([`trackers_${tabId}`]);
 });
 
-// If it is the first time, open welcome page
+// 🎓 Tutorial
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
     chrome.tabs.create({
