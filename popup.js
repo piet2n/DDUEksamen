@@ -103,6 +103,6 @@ document.addEventListener("DOMContentLoaded", () => {
 // Read more button
 document.getElementById("readMoreBtn").addEventListener("click", () => {
   chrome.tabs.create({
-    url: chrome.runtime.getURL("hitherehello.html")
+    url: chrome.runtime.getURL("information.html")
   });
 });
