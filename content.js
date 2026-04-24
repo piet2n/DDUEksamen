@@ -1,15 +1,15 @@
+// FINGERPRINTING BLOCKING
 function blockFingerprinting() {
   try {
     HTMLCanvasElement.prototype.toDataURL = function () {
-      console.log("Blocked Canvas fingerprinting");
       return "data:image/png;base64,blocked";
     };
+
     WebGLRenderingContext.prototype.getParameter = function () {
-      console.log("Blocked WebGL fingerprinting");
       return null;
     };
+
     AudioBuffer.prototype.getChannelData = function () {
-      console.log("Blocked Audio fingerprinting");
       return new Float32Array(0);
     };
   } catch {}
@@ -21,7 +21,6 @@ function handleCookiebot() {
     const btn = document.querySelector("#CybotCookiebotDialogBodyButtonDecline");
     if (btn) {
       btn.click();
-      console.log("Cookiebot rejected");
       return true;
     }
   } catch {}
@@ -33,19 +32,20 @@ function handleOneTrust() {
     const rejectBtn = document.querySelector("#onetrust-reject-all-handler");
     if (rejectBtn) {
       rejectBtn.click();
-      console.log("OneTrust rejected");
       return true;
     }
+
     const settingsBtn = document.querySelector("#onetrust-pc-btn-handler");
     if (settingsBtn) {
       settingsBtn.click();
+
       setTimeout(() => {
         try {
           const confirmBtn = document.querySelector(".save-preference-btn");
           if (confirmBtn) confirmBtn.click();
-          console.log("OneTrust rejected via settings");
         } catch {}
       }, 500);
+
       return true;
     }
   } catch {}
@@ -55,56 +55,93 @@ function handleOneTrust() {
 function autoDenyCookies() {
   try {
     if (!chrome?.runtime?.id) return;
-    // Use try/catch around Chrome API
-    try {
-      chrome.storage.local.get(["autoDeny"], (result) => {
-        if (!result?.autoDeny) return;
-        if (handleCookiebot()) return;
-        if (handleOneTrust()) return;
 
-        const elements = document.querySelectorAll("button, a, div");
-        const keywords = [
-          "reject","deny","decline","only necessary","essential",
-          "afvis","afslå","afvis alle","kun nødvendige","nødvendige","tillad nødvendige"
-        ];
+    chrome.storage.local.get(["autoDeny"], (result) => {
+      if (!result?.autoDeny) return;
 
-        for (const el of elements) {
-          const text = el.innerText?.toLowerCase() || "";
-          if (keywords.some(k => text.includes(k))) {
-            try { el.click(); console.log("Auto-denied (fallback):", text); } catch {}
-            return;
-          }
+      if (handleCookiebot()) return;
+      if (handleOneTrust()) return;
+
+      const elements = document.querySelectorAll("button, a, div");
+
+      const keywords = [
+        "reject","deny","decline","only necessary","essential",
+        "accept only necessary",
+        "afvis","afslå","afvis alle",
+        "kun nødvendige","nødvendige"
+      ];
+
+      for (const el of elements) {
+        const text = el.innerText?.toLowerCase() || "";
+
+        if (keywords.some(k => text.includes(k))) {
+          try { el.click(); } catch {}
+          return;
         }
-      });
-    } catch {}
+      }
+    });
   } catch {}
 }
 
-// TRACKER LOGIC
-const TRACKERS = [
-  "google-analytics.com",
-  "googletagmanager.com",
-  "doubleclick.net",
-  "facebook.net",
-  "tiktok.com",
-  "hotjar.com",
-  "segment.com"
-];
+// TRACKER DETECTION
+// Friendly names for UI
+const COMPANY_MAP = {
+  "google": "Google",
+  "doubleclick": "Google Ads",
+  "googletagmanager": "Google Tag Manager",
+  "facebook": "Facebook",
+  "meta": "Meta",
+  "tiktok": "TikTok",
+  "hotjar": "Hotjar",
+  "segment": "Segment",
+  "bing": "Microsoft",
+  "amazon": "Amazon",
+  "cloudflare": "Cloudflare"
+};
+
 const detectedTrackers = new Set();
 
+// Extract domain safely
+function getDomain(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
+// Convert domain → company name
+function getCompanyName(domain) {
+  for (const key in COMPANY_MAP) {
+    if (domain.includes(key)) return COMPANY_MAP[key];
+  }
+  return domain;
+}
+
+// Detect ANY 3rd-party request (not hardcoded list)
 function detectTrackers() {
   try {
     const resources = performance.getEntriesByType("resource");
+    const pageDomain = location.hostname;
+
     resources.forEach((res) => {
       const url = res.name || "";
-      TRACKERS.forEach(tracker => {
-        if (url.includes(tracker) && !detectedTrackers.has(tracker)) {
-          detectedTrackers.add(tracker);
-          try {
-            chrome.runtime.sendMessage({ type: "TRACKER_DETECTED", tracker });
-          } catch {}
-        }
-      });
+      const domain = getDomain(url);
+
+      // Ignore same-origin
+      if (!domain || domain.includes(pageDomain)) return;
+
+      // Only track once
+      if (!detectedTrackers.has(domain)) {
+        detectedTrackers.add(domain);
+
+        try {
+          chrome.runtime.sendMessage({
+            type: "TRACKER_DETECTED",
+            tracker: getCompanyName(domain)
+          });
+        } catch {}
+      }
     });
   } catch {}
 }
@@ -113,9 +150,14 @@ function detectTrackers() {
 blockFingerprinting();
 detectTrackers();
 
-// Observe DOM for cookie popups
-const observer = new MutationObserver(() => autoDenyCookies());
+// Watch for cookie popups dynamically
+const observer = new MutationObserver(() => {
+  autoDenyCookies();
+});
+
 observer.observe(document, { childList: true, subtree: true });
 
-// Poll trackers every 3s
-setInterval(() => detectTrackers(), 3000);
+// Poll trackers (for lazy-loaded scripts)
+setInterval(() => {
+  detectTrackers();
+}, 3000);

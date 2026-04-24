@@ -13,41 +13,33 @@ toggle.addEventListener("change", () => {
   chrome.storage.local.set({ autoDeny: toggle.checked });
 });
 
-// Format trackers
+// Format
 function formatTracker(domain) {
   if (domain.includes("google")) return "Google";
   if (domain.includes("facebook")) return "Facebook";
   if (domain.includes("tiktok")) return "TikTok";
-  if (domain.includes("hotjar")) return "Hotjar";
-  if (domain.includes("segment")) return "Segment";
   if (domain.includes("doubleclick")) return "Google Ads";
   return domain;
 }
 
 // Score
 function calculateScore(count) {
-  let score = 100 - count * 10;
-  return score < 0 ? 0 : score;
+  return Math.max(0, 100 - count * 10);
 }
 
-// Status
 function getStatus(score) {
-  if (score > 80) return { text: "This site respects your privacy", class: "safe" };
-  if (score > 50) return { text: "Some tracking detected", class: "warn" };
-  return { text: "Heavy tracking detected", class: "danger" };
+  if (score > 80) return { text: "Safe", class: "safe" };
+  if (score > 50) return { text: "Some tracking", class: "warn" };
+  return { text: "Heavy tracking", class: "danger" };
 }
 
-// Load tab data
+// Load data
 function loadData() {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!tabs.length) return;
-
     const tabId = tabs[0].id;
-    console.log('Loading data for tab:', tabId);
 
     chrome.storage.local.get([`trackers_${tabId}`], (result) => {
       const trackers = result[`trackers_${tabId}`] || [];
-      console.log('Retrieved trackers:', trackers);
       const count = trackers.length;
 
       trackerCountEl.innerHTML = `<strong>${count}</strong>`;
@@ -60,33 +52,57 @@ function loadData() {
       scoreEl.className = `score ${status.class}`;
 
       if (count > 0) {
-        const unique = [...new Set(trackers.map(formatTracker))];
-
         trackerListEl.innerHTML =
           "<ul>" +
-          unique.map(t => `<li>${t}</li>`).join("") +
+          [...new Set(trackers.map(formatTracker))]
+            .map(t => `<li>${t}</li>`)
+            .join("") +
           "</ul>";
       } else {
-        trackerListEl.innerText = "No known tracking companies detected";
+        trackerListEl.innerText = "No trackers detected";
       }
     });
   });
 }
 
-// Load stats
+// GRAPH
+function drawGraph(stats) {
+  const canvas = document.getElementById("statsChart");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+
+  const data = [
+    stats.todayBlocked || 0,
+    Math.floor((stats.totalBlocked || 0) / 7),
+    stats.totalBlocked || 0
+  ];
+
+  const max = Math.max(...data, 10);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  data.forEach((val, i) => {
+    const height = (val / max) * 100;
+    ctx.fillRect(i * 60, 120 - height, 40, height);
+  ctx.fillStyle = "#000";
+  ctx.font = "10px sans-serif";
+  const labels = ["Today", "Avg", "Total"];
+  ctx.fillText(labels[i], x, 135);
+  });
+}
+
+// Stats
 function loadStats() {
   chrome.storage.local.get(["stats"], (res) => {
-    const stats = res.stats || {
-      totalBlocked: 0,
-      todayBlocked: 0
-    };
+    const stats = res.stats || { totalBlocked: 0, todayBlocked: 0 };
 
-    const el = document.getElementById("statsBlock");
-
-    el.innerHTML = `
-      <div><strong>${stats.totalBlocked}</strong> blocked all-time</div>
-      <div><strong>${stats.todayBlocked}</strong> blocked today</div>
+    document.getElementById("statsBlock").innerHTML = `
+      <div><strong>${stats.totalBlocked}</strong> total</div>
+      <div><strong>${stats.todayBlocked}</strong> today</div>
     `;
+
+    drawGraph(stats);
   });
 }
 
@@ -95,14 +111,17 @@ document.addEventListener("DOMContentLoaded", () => {
   loadData();
   loadStats();
 
+  const btn = document.getElementById("readMoreBtn");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      chrome.tabs.create({
+        url: chrome.runtime.getURL("information.html")
+      });
+    });
+  }
+
   chrome.storage.onChanged.addListener(() => {
     loadData();
     loadStats();
-  });
-});
-// Read more button
-document.getElementById("readMoreBtn").addEventListener("click", () => {
-  chrome.tabs.create({
-    url: chrome.runtime.getURL("information.html")
   });
 });

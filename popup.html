@@ -54,6 +54,20 @@
       gap: 8px;
     }
 
+    button {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 8px;
+      background: #3498db;
+      color: white;
+      cursor: pointer;
+    }
+
+    canvas {
+      margin-top: 8px;
+    }
+
     .footer {
       font-size: 11px;
       text-align: center;
@@ -84,10 +98,10 @@
   <div id="trackerList">No known trackers</div>
 </div>
 
-// Statistics
 <div class="card">
   <div class="label">Your protection</div>
   <div id="statsBlock">Loading...</div>
+  <canvas id="statsChart" height="120"></canvas>
 </div>
 
 <div class="card">
@@ -96,19 +110,11 @@
     <label for="autoDenyToggle">Auto-reject cookies</label>
   </div>
 </div>
+
 <div class="card">
-  <button id="readMoreBtn" style="
-    width: 100%;
-    padding: 8px;
-    border: none;
-    border-radius: 8px;
-    background: #3498db;
-    color: white;
-    cursor: pointer;
-  ">
-    Read more / Help
-  </button>
+  <button id="readMoreBtn">Read more / Help</button>
 </div>
+
 <div class="footer">
   Protecting your privacy automatically
 </div>
